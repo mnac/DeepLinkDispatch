@@ -487,10 +487,10 @@ public class DeepLinkProcessor extends AbstractProcessor {
             .addStatement("newIntent.putExtras(parameters)")
             .addStatement("newIntent.putExtra(DeepLink.IS_DEEP_LINK, true)")
             .beginControlFlow("if (activity.getCallingActivity() != null)")
-            .addStatement("newIntent.setFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT)")
+            .addStatement("newIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)")
             .endControlFlow()
             .addStatement("taskStackBuilder.addNextIntent(newIntent)")
-            .addStatement("taskStackBuilder.getPendingIntent(0, android.app.PendingIntent.FLAG_CANCEL_CURRENT).send();")
+            .addStatement("taskStackBuilder.getPendingIntent(0, android.app.PendingIntent.FLAG_CANCEL_CURRENT).send()")
             .addStatement("return createResultAndNotify(activity, true, uri, null)")
             .nextControlFlow("catch (NoSuchMethodException exception)")
             .addStatement(
