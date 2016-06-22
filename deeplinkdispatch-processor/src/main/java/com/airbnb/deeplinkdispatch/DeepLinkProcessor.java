@@ -506,7 +506,7 @@ public class DeepLinkProcessor extends AbstractProcessor {
                             + "link to method: \" + entry.getMethod())")
             .nextControlFlow("catch (android.app.PendingIntent.CanceledException exception)")
             .addStatement(
-                      "return createResultAndNotify(activity, false, uri, \"Pending intent Error")
+                      "return createResultAndNotify(activity, false, uri, \"Pending intent Error)\"")
             .endControlFlow()
             .nextControlFlow("else")
             .addStatement("return createResultAndNotify(activity, false, uri, "
