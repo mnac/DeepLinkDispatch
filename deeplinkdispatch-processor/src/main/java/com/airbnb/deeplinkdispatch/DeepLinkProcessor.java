@@ -410,12 +410,103 @@ public class DeepLinkProcessor extends AbstractProcessor {
         .endControlFlow()
         .build();
 
+
+    MethodSpec dispatchFromMethodWithIntentAndSupportBuilder = MethodSpec.methodBuilder("dispatchFrom")
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .returns(DEEPLINKRESULT)
+            .addParameter(ClassName.get("android.app", "Activity"), "activity")
+            .addParameter(ClassName.get("android.content", "Intent"), "sourceIntent")
+            .addParameter(ClassName.get("android.support.v4.app", "TaskStackBuilder"), "taskStackBuilder")
+            .beginControlFlow("if (activity == null)")
+            .addStatement("throw new $T($S)", NullPointerException.class, "activity == null")
+            .endControlFlow()
+            .beginControlFlow("if (sourceIntent == null)")
+            .addStatement("throw new $T($S)", NullPointerException.class, "sourceIntent == null")
+            .endControlFlow()
+            .addStatement("$T uri = sourceIntent.getData()", ANDROID_URI)
+            .beginControlFlow("if (uri == null)")
+            .addStatement("return createResultAndNotify(activity, false, null, $S)",
+                    "No Uri in given activity's intent.")
+            .endControlFlow()
+            .addStatement("DeepLinkLoader loader = new DeepLinkLoader()")
+            .addStatement("loader.load()")
+            .addStatement("String uriString = uri.toString()")
+            .addStatement("DeepLinkEntry entry = loader.parseUri(uriString)")
+            .beginControlFlow("if (entry != null)")
+            .addStatement("DeepLinkUri deepLinkUri = DeepLinkUri.parse(uriString)")
+            .addStatement("$T<String, String> parameterMap = entry.getParameters(uriString)", Map.class)
+            .beginControlFlow("for (String queryParameter : deepLinkUri.queryParameterNames())")
+            .beginControlFlow(
+                    "for (String queryParameterValue : deepLinkUri.queryParameterValues(queryParameter))")
+            .beginControlFlow("if (parameterMap.containsKey(queryParameter))")
+            .addStatement(
+                    "$T.w(TAG, \"Duplicate parameter name in path and query param: \" + queryParameter)",
+                    ClassName.get("android.util", "Log"))
+            .endControlFlow()
+            .addStatement("parameterMap.put(queryParameter, queryParameterValue)")
+            .endControlFlow()
+            .endControlFlow()
+            .addStatement("parameterMap.put(DeepLink.URI, uri.toString())")
+            .beginControlFlow("try")
+            .addStatement("Class<?> c = entry.getActivityClass()")
+            .addStatement("$T newIntent", ANDROID_INTENT)
+            .beginControlFlow("if (entry.getType() == DeepLinkEntry.Type.CLASS)")
+            .addStatement("newIntent = new Intent(activity, c)")
+            .nextControlFlow("else")
+            .addStatement("$T method = c.getMethod(entry.getMethod(), $T.class)", Method.class,
+                    ClassName.get("android.content", "Context"))
+            .addStatement("newIntent = (Intent) method.invoke(c, activity)")
+            .endControlFlow()
+            .beginControlFlow("if (newIntent.getAction() == null)")
+            .addStatement("newIntent.setAction(sourceIntent.getAction())")
+            .endControlFlow()
+            .beginControlFlow("if (newIntent.getData() == null)")
+            .addStatement("newIntent.setData(sourceIntent.getData())")
+            .endControlFlow()
+            .addStatement("$T parameters", ClassName.get("android.os", "Bundle"))
+            .beginControlFlow("if (sourceIntent.getExtras() != null)")
+            .addStatement("parameters = new Bundle(sourceIntent.getExtras())")
+            .nextControlFlow("else")
+            .addStatement("parameters = new Bundle()")
+            .endControlFlow()
+            .beginControlFlow(
+                    "for (Map.Entry<String, String> parameterEntry : parameterMap.entrySet())")
+            .addStatement("parameters.putString(parameterEntry.getKey(), parameterEntry.getValue())")
+            .endControlFlow()
+            .addStatement("newIntent.putExtras(parameters)")
+            .addStatement("newIntent.putExtra(DeepLink.IS_DEEP_LINK, true)")
+            .beginControlFlow("if (activity.getCallingActivity() != null)")
+            .addStatement("newIntent.setFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT)")
+            .endControlFlow()
+            .addStatement("taskStackBuilder.addNextIntent(newIntent)")
+            .addStatement("taskStackBuilder.startActivities()")
+            .addStatement("return createResultAndNotify(activity, true, uri, null)")
+            .nextControlFlow("catch (NoSuchMethodException exception)")
+            .addStatement(
+                    "return createResultAndNotify(activity, false, uri, \"Deep link to "
+                            + "non-existent method: \" + entry.getMethod())")
+            .nextControlFlow("catch (IllegalAccessException exception)")
+            .addStatement(
+                    "return createResultAndNotify(activity, false, uri, \"Could not deep "
+                            + "link to method: \" + entry.getMethod())")
+            .nextControlFlow("catch ($T  exception)", InvocationTargetException.class)
+            .addStatement(
+                    "return createResultAndNotify(activity, false, uri, \"Could not deep "
+                            + "link to method: \" + entry.getMethod())")
+            .endControlFlow()
+            .nextControlFlow("else")
+            .addStatement("return createResultAndNotify(activity, false, uri, "
+                    + "\"No registered entity to handle deep link: \" + uri.toString())")
+            .endControlFlow()
+            .build();
+
     TypeSpec deepLinkDelegate = TypeSpec.classBuilder("DeepLinkDelegate")
         .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
         .addField(tag)
         .addMethod(constructor)
         .addMethod(dispatchFromMethod)
         .addMethod(dispatchFromMethodWithIntent)
+        .addMethod(dispatchFromMethodWithIntentAndSupportBuilder)
         .addMethod(createResultAndNotifyMethod)
         .addMethod(notifyListenerMethod)
         .build();
