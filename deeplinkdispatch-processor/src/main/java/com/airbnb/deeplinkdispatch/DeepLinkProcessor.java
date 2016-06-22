@@ -323,6 +323,17 @@ public class DeepLinkProcessor extends AbstractProcessor {
         .addStatement("return dispatchFrom(activity, activity.getIntent())")
         .build();
 
+  MethodSpec dispatchFromMethodWithSupportTaskBuilder = MethodSpec.methodBuilder("dispatchFrom")
+          .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+          .returns(DEEPLINKRESULT)
+          .addParameter(ClassName.get("android.app", "Activity"), "activity")
+          .addParameter(ClassName.get("android.support.v4.app", "TaskStackBuilder"), "taskStackBuilder")
+          .beginControlFlow("if (activity == null)")
+          .addStatement("throw new $T($S)", NullPointerException.class, "activity == null")
+          .endControlFlow()
+          .addStatement("return dispatchFrom(activity, activity.getIntent(), taskStackBuilder)")
+          .build();
+
     MethodSpec dispatchFromMethodWithIntent = MethodSpec.methodBuilder("dispatchFrom")
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
         .returns(DEEPLINKRESULT)
@@ -506,6 +517,7 @@ public class DeepLinkProcessor extends AbstractProcessor {
         .addMethod(constructor)
         .addMethod(dispatchFromMethod)
         .addMethod(dispatchFromMethodWithIntent)
+        .addMethod(dispatchFromMethodWithSupportTaskBuilder)
         .addMethod(dispatchFromMethodWithIntentAndSupportBuilder)
         .addMethod(createResultAndNotifyMethod)
         .addMethod(notifyListenerMethod)
